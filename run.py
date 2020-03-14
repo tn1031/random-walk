@@ -56,29 +56,21 @@ def run_evaluate(model, latest_prefs, top_k):
     )
 
 
-def main(path):
+def main(path, mode):
     adjacency, offsets, test_df, user2uid, item2iid = build_graph(
         path, test_size=32, split="time", out_dir="model"
     )
     n_users, n_items = len(user2uid), len(item2iid)
     latest_prefs = test_df.groupby("user_id").item_id.apply(list).to_dict()
 
-    # rw = RW(alpha=0.1, n_total_steps=100000).load_graph(
-    #    adjacency, offsets, n_users, n_items
-    # )
-    # run_evaluate(rw, latest_prefs, 32)
+    rw_class = {
+        "vanilla": RW,
+        "cache": RWcache,
+        "parallel": RWparallel,
+        "cython": RWcython,
+    }
 
-    # rw = RWcache(alpha=0.1, n_total_steps=100000).load_graph(
-    #    adjacency, offsets, n_users, n_items
-    # )
-    # run_evaluate(rw, latest_prefs, 32)
-
-    # rw = RWparallel(alpha=0.1, n_total_steps=100000).load_graph(
-    #    adjacency, offsets, n_users, n_items
-    # )
-    # run_evaluate(rw, latest_prefs, 32)
-
-    rw = RWcython(alpha=0.1, n_total_steps=100000).load_graph(
+    rw = rw_class[mode](alpha=0.1, n_total_steps=100000).load_graph(
         adjacency, offsets, n_users, n_items
     )
     run_evaluate(rw, latest_prefs, 32)
@@ -89,5 +81,11 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("inp")
+    parser.add_argument(
+        "--mode",
+        "-m",
+        choices=["vanilla", "cache", "parallel", "cython"],
+        default="vanilla",
+    )
     args = parser.parse_args()
-    main(args.inp)
+    main(args.inp, args.mode)
