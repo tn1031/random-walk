@@ -6,7 +6,6 @@ from libc.math cimport sqrt
 from libc.stdlib cimport rand, RAND_MAX
 from libcpp.unordered_map cimport unordered_map
 from libcpp.vector cimport vector
-from libcpp.pair cimport pair
 cimport cython
 from cython.operator cimport dereference, postincrement
 from cython.parallel import prange
@@ -49,7 +48,7 @@ cdef long _c_sample_neighbor(
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
-cdef pair[unordered_map[long, long], long] c_pixie_random_walk(
+cdef long c_pixie_random_walk(
     const long[:] adjacency,
     const long[:] offsets,
     long q,
@@ -59,15 +58,13 @@ cdef pair[unordered_map[long, long], long] c_pixie_random_walk(
     long _n_total_steps,
     long[:] sample_steps,
     long steps_cnt,
-    unordered_map[long, long]& visit_q
+    unordered_map[long, long]& visit_count
 ) nogil:
     cdef:
-        unordered_map[long, long] visit_count
         long total_steps = 0
         long n_high_visited = 0
         long curr_item, curr_user
         int i
-        pair[unordered_map[long, long], long] p
 
     while (
         total_steps < max_steps
@@ -84,9 +81,7 @@ cdef pair[unordered_map[long, long], long] c_pixie_random_walk(
                 if total_steps == 0:
                     # The query node does not have any connections
                     steps_cnt += 1
-                    p.first = visit_count
-                    p.second = steps_cnt
-                    return p
+                    return steps_cnt
                 else:
                     break
     
@@ -111,9 +106,7 @@ cdef pair[unordered_map[long, long], long] c_pixie_random_walk(
 
         steps_cnt += 1
     
-    p.first = visit_count
-    p.second = steps_cnt
-    return p
+    return steps_cnt
 
 @cython.cdivision(True)
 @cython.boundscheck(False)
@@ -131,46 +124,44 @@ cpdef wrap_c_pixie_random_walk(
 ):
     cdef:
         long total_random_walks = <long>(query_items.nbytes / 8)
-        long i, q, n_q, item, visit_count
+        long i, q, n_q, item, vc
         double s
-        unordered_map[long, long] visit_q
+        unordered_map[long, long] v, visit_count
         vector[unordered_map[long, long]] visit_counts = <vector[unordered_map[long, long]]>[]
         unordered_map[long, long].iterator it
         unordered_map[long, double] boosted_visit_counts
         unordered_map[long, double].iterator it_bc
-        long steps_cnt = 0  # 参照渡しできない...
-        pair[unordered_map[long, long], long] p
+        long steps_cnt = 0
 
     visit_counts.resize(total_random_walks)
     for i in range(total_random_walks):
         q = query_items[i]
         n_q = steps_per_query[i]
         
-        p = c_pixie_random_walk(
+        visit_count.clear()
+        steps_cnt = c_pixie_random_walk(
             adjacency, offsets,
             q, n_q, _n_least_candidate_nodes, _n_least_visited_cnt,
-            _n_total_steps, sample_steps, steps_cnt, visit_q
+            _n_total_steps, sample_steps, steps_cnt, visit_count
         )
-        visit_q = p.first
-        steps_cnt = p.second
-        visit_counts[i] = visit_q
+        visit_counts[i] = visit_count
 
     for i in range(total_random_walks):
         v = visit_counts[i]
         it = v.begin()
         while it != v.end():
             item = dereference(it).first
-            visit_count = dereference(it).second
+            vc = dereference(it).second
             if _use_boosting:
                 if boosted_visit_counts.find(item) != boosted_visit_counts.end():
-                    boosted_visit_counts[item] += sqrt(visit_count)
+                    boosted_visit_counts[item] += sqrt(vc)
                 else:
-                    boosted_visit_counts[item] = sqrt(visit_count)
+                    boosted_visit_counts[item] = sqrt(vc)
             else:
                 if boosted_visit_counts.find(item) != boosted_visit_counts.end():
-                    boosted_visit_counts[item] += visit_count
+                    boosted_visit_counts[item] += vc
                 else:
-                    boosted_visit_counts[item] = visit_count
+                    boosted_visit_counts[item] = vc
             postincrement(it)
 
     if _use_boosting:
