@@ -6,6 +6,7 @@ from build_graph import build_graph
 from randomwalk.rw import RandomWalk as RW
 from randomwalk.rw_cache import RandomWalk as RWcache
 from randomwalk.rw_parallel import RandomWalk as RWparallel
+from randomwalk.rw_cy import RandomWalk as RWcy
 from randomwalk.rw_cython import RandomWalk as RWcython
 
 
@@ -67,6 +68,7 @@ def main(path, mode):
         "vanilla": RW,
         "cache": RWcache,
         "parallel": RWparallel,
+        "cy": RWcy,
         "cython": RWcython,
     }
 
@@ -84,7 +86,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode",
         "-m",
-        choices=["vanilla", "cache", "parallel", "cython"],
+        choices=["vanilla", "cache", "parallel", "cy", "cython"],
         default="vanilla",
     )
     args = parser.parse_args()
