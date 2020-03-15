@@ -12,4 +12,8 @@ else:
     os.environ["CXX"] = "/usr/bin/g++"
     os.environ["CFLAGS"] = "-std=c++11"
 
-setup(ext_modules=cythonize(["randomwalk/c_randomwalk.pyx"]))
+setup(
+    ext_modules=cythonize(
+        ["randomwalk/c_sample_neighbor.pyx", "randomwalk/c_randomwalk.pyx"]
+    )
+)

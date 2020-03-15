@@ -117,10 +117,10 @@ class RandomWalk:
                     else:
                         break
 
-                curr_user = _c_sample_neighbor(
-                    self._adjacency, self._offsets, curr_item
+                curr_item = _c_sample_neighbor(
+                    self._adjacency, self._offsets, curr_user
                 )
-                if curr_user == -1:
+                if curr_item == -1:
                     # Reached a dead end
                     break
 
