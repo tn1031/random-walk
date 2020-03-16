@@ -125,7 +125,6 @@ cpdef wrap_c_pixie_random_walk(
     cdef:
         long total_random_walks = <long>(query_items.nbytes / 8)
         long i, q, n_q, item, vc
-        double s
         unordered_map[long, long] v, visit_count
         vector[unordered_map[long, long]] visit_counts = <vector[unordered_map[long, long]]>[]
         unordered_map[long, long].iterator it
