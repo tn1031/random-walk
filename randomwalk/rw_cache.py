@@ -23,7 +23,15 @@ class RandomWalk:
         self._dynamic_allocation = dynamic_allocation
         self._use_pixie_weighting = use_pixie_weighting
 
-    def load_graph(self, adjacency, offsets, n_users, n_items):
+    def load_graph(
+        self,
+        adjacency,
+        offsets,
+        n_users,
+        n_items,
+        category_adj=None,
+        category_lst=None,
+    ):
         self._adjacency = adjacency
         self._offsets = offsets
         assert len(self._offsets) == n_users + n_items + 1
@@ -35,6 +43,16 @@ class RandomWalk:
         self.max_item_degree = np.max(
             [self.get_degree(n) for n in range(n_users, self.n_nodes)]
         )
+        self._category_adj = (
+            category_adj
+            if category_adj is not None
+            else np.ones_like(adjacency)
+        )
+        self._category_lst = (
+            category_lst if category_lst is not None else np.ones_like(offsets)
+        )
+        self._category_adj.setflags(write=False)
+        self._category_lst.setflags(write=False)
         return self
 
     def get_degree(self, node):
@@ -46,9 +64,20 @@ class RandomWalk:
         max_id = self._offsets[node + 1]
         return self._adjacency[min_id:max_id]
 
+    @lru_cache(maxsize=None)
+    def get_mask(self, node):
+        category = self._category_lst[node]
+        min_id = self._offsets[node]
+        max_id = self._offsets[node + 1]
+        return (self._category_adj[min_id:max_id] & category) > 0
+
     def sample_neighbor(self, node):
         n = self.get_neighbors(node)
-        return n[int(random.random() * len(n))]
+        mask = self.get_mask(node)
+        cand = n[mask]
+        if len(cand) == 0:
+            cand = n
+        return cand[int(random.random() * len(cand))]
 
     def run_random_walk(self, query_items):
         self.get_neighbors.cache_clear()
